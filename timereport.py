@@ -16,7 +16,7 @@ class Work(typing.NamedTuple):
 
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument('path', default='.')
+    parser.add_argument('paths', nargs='*')
     parser.add_argument('--email', nargs='*')
     parser.add_argument('--task', default=r'[A-Z]{1,8}\-?[0-9]{1,8}')
     parser.add_argument('--group-by', default='day', choices=('day', 'week', 'month'))
@@ -26,7 +26,7 @@ def get_parser() -> ArgumentParser:
     return parser
 
 
-CommitsType = typing.Dict[typing.Any, typing.Dict[int, typing.List[str]]]
+CommitsType = typing.Dict[date, typing.Dict[int, typing.List[str]]]
 WorksType = typing.List[Work]
 
 
@@ -91,25 +91,38 @@ def report(works: WorksType, group_by: str) -> typing.Iterator[typing.Tuple[str,
             yield key, work.task, str(round(work.hours))
 
 
+def merge_commits(total: CommitsType, new: CommitsType) -> CommitsType:
+    result: CommitsType = defaultdict(lambda: defaultdict(list))
+    for cdate, chours in total.items():
+        for chour, tasks in chours.items():
+            result[cdate][chour].extend(tasks)
+    for cdate, chours in new.items():
+        for chour, tasks in chours.items():
+            result[cdate][chour].extend(tasks)
+    return result
+
+
 def main(argv: typing.List[str]) -> int:
     parser = get_parser()
     args = parser.parse_args(args=argv)
-    repo = Repo(args.path)
 
-    emails = args.email
-    if not emails:
-        email = repo.config_reader().get_value('user', 'email')
-        emails = [email]
-
-    commits = collect_commits(
-        repo=repo,
-        emails=emails,
-        rex_task=re.compile(args.task),
-        delta=timedelta(days=args.delta),
-        today=date.today(),
-    )
+    all_commits: CommitsType = dict()
+    for path in args.paths:
+        repo = Repo(path)
+        emails = args.email
+        if not emails:
+            email = repo.config_reader().get_value('user', 'email')
+            emails = [email]
+        repo_commits = collect_commits(
+            repo=repo,
+            emails=emails,
+            rex_task=re.compile(args.task),
+            delta=timedelta(days=args.delta),
+            today=date.today(),
+        )
+        all_commits = merge_commits(all_commits, repo_commits)
     works = calculate_works(
-        commits=commits,
+        commits=all_commits,
         hours=args.hours,
     )
     lines = report(works=works, group_by=args.group_by)
