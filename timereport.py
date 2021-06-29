@@ -16,13 +16,13 @@ class Work(typing.NamedTuple):
 
 def get_parser() -> ArgumentParser:
     parser = ArgumentParser()
-    parser.add_argument('paths', nargs='*')
-    parser.add_argument('--email', nargs='*')
-    parser.add_argument('--task', default=r'[A-Z]{1,8}\-?[0-9]{1,8}')
+    parser.add_argument('paths', nargs='*', help='paths to git repos to analyze')
+    parser.add_argument('--email', nargs='*', help='user email to generate the report for')
+    parser.add_argument('--task', default=r'[A-Z]{1,8}\-?[0-9]{1,8}', help='regexp for task number')
     parser.add_argument('--group-by', default='day', choices=('day', 'week', 'month'))
-    parser.add_argument('--delta', type=int, default=30)
-    parser.add_argument('--hours', type=int, default=8)
-    parser.add_argument('--sep', default='\t')
+    parser.add_argument('--delta', type=int, default=30, help='days from today to generate report for')
+    parser.add_argument('--hours', type=int, default=8, help='how many hours of work per day to assume')
+    parser.add_argument('--sep', default='\t', help='output columns separator')
     return parser
 
 
